@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'auth_service.dart';
+import 'profile_form.dart';
 
 class AuthPage extends StatefulWidget {
   const AuthPage({super.key});
@@ -51,9 +54,17 @@ class _AuthPageState extends State<AuthPage> {
                   if (isLogin) {
                     await authService.loginWithEmail(email, password);
                     showSnack('Logged in successfully!');
+                    // TODO: переход на ленту
                   } else {
                     await authService.registerWithEmail(email, password);
                     showSnack('Registered successfully!');
+
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ProfileFormScreen(),
+                      ),
+                    );
                   }
                 } catch (e) {
                   showSnack('Error: $e');
@@ -80,8 +91,26 @@ class _AuthPageState extends State<AuthPage> {
             OutlinedButton.icon(
               onPressed: () async {
                 try {
-                  await authService.signInWithGoogle();
-                  showSnack('Signed in with Google!');
+                  final user = await authService.signInWithGoogle();
+                  if (user == null) return;
+
+                  final doc = await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(user.uid)
+                      .get();
+
+                  if (!doc.exists) {
+                    // 🔥 Профиль не найден — открываем форму
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ProfileFormScreen(),
+                      ),
+                    );
+                  } else {
+                    showSnack('Welcome back!');
+                    // TODO: переход на главную
+                  }
                 } catch (e) {
                   showSnack('Google sign-in error: $e');
                 }
